@@ -1,4 +1,4 @@
-const Book = require("../models/BookModel");
+const Hostel = require("../models/BookModel");
 const { body,validationResult } = require("express-validator");
 const { sanitizeBody } = require("express-validator");
 const apiResponse = require("../helpers/apiResponse");
@@ -6,12 +6,10 @@ const auth = require("../middlewares/jwt");
 var mongoose = require("mongoose");
 mongoose.set("useFindAndModify", false);
 
-// Book Schema
+
 function BookData(data) {
-	this.id = data._id;
-	this.title= data.title;
-	this.description = data.description;
-	this.isbn = data.isbn;
+	this.user_id = data.id;
+	this.room= data.room;
 	this.createdAt = data.createdAt;
 }
 
@@ -24,7 +22,8 @@ exports.bookList = [
 	auth,
 	function (req, res) {
 		try {
-			Book.find({user: req.user._id},"_id title description isbn createdAt").then((books)=>{
+			Hostel.find({}).then((books)=>{
+				console.log(books);
 				if(books.length > 0){
 					return apiResponse.successResponseWithData(res, "Operation success", books);
 				}else{
@@ -78,12 +77,10 @@ exports.bookDetail = [
  */
 exports.bookStore = [
 	auth,
-	body("title", "Title must not be empty.").isLength({ min: 1 }).trim(),
-	body("description", "Description must not be empty.").isLength({ min: 1 }).trim(),
-	body("isbn", "ISBN must not be empty").isLength({ min: 1 }).trim().custom((value,{req}) => {
-		return Book.findOne({isbn : value,user: req.user._id}).then(book => {
-			if (book) {
-				return Promise.reject("Book already exist with this ISBN no.");
+	body("room", "Room number must not be empty.").custom((value) => {
+		return Hostel.findOne({room: value}).then(room => {
+			if (room) {
+				return Promise.reject("This room is already booked");
 			}
 		});
 	}),
@@ -91,13 +88,11 @@ exports.bookStore = [
 	(req, res) => {
 		try {
 			const errors = validationResult(req);
-			var book = new Book(
-				{ title: req.body.title,
-					user: req.user,
-					description: req.body.description,
-					isbn: req.body.isbn
+			var book = new Hostel(
+				{ 	user_id: req.body.id,
+					room: req.body.room
 				});
-
+			console.log(book);
 			if (!errors.isEmpty()) {
 				return apiResponse.validationErrorWithData(res, "Validation Error.", errors.array());
 			}
@@ -106,11 +101,12 @@ exports.bookStore = [
 				book.save(function (err) {
 					if (err) { return apiResponse.ErrorResponse(res, err); }
 					let bookData = new BookData(book);
-					return apiResponse.successResponseWithData(res,"Book add Success.", bookData);
+					return apiResponse.successResponseWithData(res,"Room booking Success.", bookData);
 				});
 			}
 		} catch (err) {
 			//throw error in json response with status 500. 
+			console.log(err);
 			return apiResponse.ErrorResponse(res, err);
 		}
 	}
